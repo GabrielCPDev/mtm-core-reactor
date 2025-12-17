@@ -1,1 +1,1 @@
-io.iggdrasil.mtm.config.injection
+io.iggdrasil.mtm.config.injection.MultiTenancyAutoConfiguration
