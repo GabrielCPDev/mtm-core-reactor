@@ -1,0 +1,79 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches:
+      - develop
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necessário para comparar versões com branches remotos
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant exec permission
+        run: chmod +x gradlew
+
+      # 1. Extrair Versão Atual (do PR/Branch atual)
+      - name: Extract current version
+        id: curr_version
+        run: |
+          VERSION=$(grep -E '^version\s*=' build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # 2. Extrair Versão da Develop (para comparação)
+      - name: Extract base version
+        id: base_version
+        run: |
+          git fetch origin develop
+          git show origin/develop:build.gradle.kts > base-build.gradle.kts
+          VERSION=$(grep -E '^version\s*=' base-build.gradle.kts | sed 's/.*"\(.*\)".*/\1/' || echo "0.0.0")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # 3. Comparar Versões
+      - name: Check if version bumped
+        id: check_bump
+        run: |
+          if [ "${{ steps.curr_version.outputs.version }}" != "${{ steps.base_version.outputs.version }}" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Versão alterada de ${{ steps.base_version.outputs.version }} para ${{ steps.curr_version.outputs.version }}"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "A versão não foi incrementada."
+          fi
+
+      # 4. Rodar Testes (Sempre roda no PR para validar a conclusão do PR)
+      - name: Run Tests
+        run: |
+          ./gradlew test \
+            -Pgpr.user=${{ github.actor }} \
+            -Pgpr.token=${{ secrets.GITHUB_TOKEN }} \
+            --no-daemon
+
+      # 5. Publicar (Apenas se for PUSH na develop E a versão mudou)
+      - name: Publish to GitHub Packages
+        if: github.event_name == 'push' && steps.check_bump.outputs.changed == 'true'
+        run: |
+          ./gradlew publish \
+            -Pgpr.user=${{ github.actor }} \
+            -Pgpr.token=${{ secrets.GITHUB_TOKEN }} \
+            --no-daemon
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
