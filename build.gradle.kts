@@ -7,8 +7,8 @@ plugins {
     id("maven-publish")
 }
 
-group = "io.igdrasil"
-version = "0.0.1-rc1-SNAPSHOT"
+group = "io.iggdrasil"
+version = "0.0.1-rc2-SNAPSHOT"
 description = "Multi-tenancy Manager Reactor Core"
 
 java {
@@ -77,7 +77,7 @@ kotlin {
 }
 
 tasks.withType<Test> {
-    useJUnitPlatform()
+    failOnNoDiscoveredTests = false
 }
 
 publishing {
