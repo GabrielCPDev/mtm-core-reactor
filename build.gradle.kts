@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.iggdrasil"
-version = "0.0.1-rc4-SNAPSHOT"
+version = "0.0.1-rc5-SNAPSHOT"
 description = "Multi-tenancy Manager Reactor Core"
 
 java {
@@ -83,7 +83,7 @@ tasks.withType<Test> {
 publishing {
     publications {
         create<MavenPublication>("gpr") {
-            groupId = "io.igdrasil"
+            groupId = "io.igdrasil.mtm"
             artifactId = "mtm-core-reactor"
             version = project.version.toString()
 
@@ -94,7 +94,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/GabrielCPDev/mtm-core-reactor")
+            url = uri("https://maven.pkg.github.com/gabrielcpdev/mtm-core-reactor")
             credentials {
                 username = project.findProperty("gpr.user")?.toString() ?: System.getenv("GITHUB_ACTOR")
                 password = project.findProperty("gpr.token")?.toString() ?: System.getenv("GITHUB_TOKEN")
