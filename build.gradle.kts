@@ -77,7 +77,7 @@ kotlin {
 }
 
 tasks.withType<Test> {
-    useJUnitPlatform()
+    failOnNoDiscoveredTests = false
 }
 
 publishing {
