@@ -102,18 +102,11 @@ class MultiTenancyAutoConfiguration {
     ): ConnectionFactory = routing
 
 
-    @Bean
+    @Primary
+    @Bean(name = ["mongoDatabaseFactory", "routingMongoDatabaseFactory"])
     @ConditionalOnBean(DataSourceManagerMongo::class)
     fun routingMongoDatabaseFactory(
         manager: DataSourceManagerMongo
     ): ReactiveMongoDatabaseFactory =
         RoutingMongoDatabaseFactory(manager)
-
-    @Bean
-    @Primary
-    @ConditionalOnBean(RoutingMongoDatabaseFactory::class)
-    fun mongoDatabaseFactory(
-        factory: ReactiveMongoDatabaseFactory
-    ): ReactiveMongoDatabaseFactory = factory
-
 }
