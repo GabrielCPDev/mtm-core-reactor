@@ -19,7 +19,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Necessário para comparar versões com branches remotos
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -31,35 +31,44 @@ jobs:
       - name: Grant exec permission
         run: chmod +x gradlew
 
-      # 1. Extrair Versão Atual (do PR/Branch atual)
+      # 1. Extrair Versão Atual
       - name: Extract current version
         id: curr_version
         run: |
-          VERSION=$(grep -E '^version\s*=' build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          # Pega a versão tratando aspas simples ou duplas
+          VERSION=$(grep -E '^version\s*=' build.gradle.kts | sed "s/.*['\"]\(.*\)['\"].*/\1/")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # 2. Extrair Versão da Develop (para comparação)
+      # 2. Extrair Versão Base (Lógica corrigida para Push vs PR)
       - name: Extract base version
         id: base_version
         run: |
-          git fetch origin develop
-          git show origin/develop:build.gradle.kts > base-build.gradle.kts
-          VERSION=$(grep -E '^version\s*=' base-build.gradle.kts | sed 's/.*"\(.*\)".*/\1/' || echo "0.0.0")
+          if [ "${{ github.event_name }}" == "push" ]; then
+            # No PUSH na develop, comparamos com o commit imediatamente anterior ao merge
+            git show HEAD~1:build.gradle.kts > base-build.gradle.kts || echo 'version = "0.0.0"' > base-build.gradle.kts
+          else
+            # No PR, comparamos com a versão que está na develop remota agora
+            git fetch origin develop
+            git show origin/develop:build.gradle.kts > base-build.gradle.kts || echo 'version = "0.0.0"' > base-build.gradle.kts
+          fi
+          VERSION=$(grep -E '^version\s*=' base-build.gradle.kts | sed "s/.*['\"]\(.*\)['\"].*/\1/" || echo "0.0.0")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # 3. Comparar Versões
       - name: Check if version bumped
         id: check_bump
         run: |
+          echo "Versão Base: ${{ steps.base_version.outputs.version }}"
+          echo "Versão Atual: ${{ steps.curr_version.outputs.version }}"
           if [ "${{ steps.curr_version.outputs.version }}" != "${{ steps.base_version.outputs.version }}" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
-            echo "Versão alterada de ${{ steps.base_version.outputs.version }} para ${{ steps.curr_version.outputs.version }}"
+            echo "MUDANÇA DETECTADA: Publicação autorizada."
           else
             echo "changed=false" >> $GITHUB_OUTPUT
-            echo "A versão não foi incrementada."
+            echo "SEM MUDANÇA: O passo de publicação será pulado."
           fi
 
-      # 4. Rodar Testes (Sempre roda no PR para validar a conclusão do PR)
+      # 4. Rodar Testes
       - name: Run Tests
         run: |
           ./gradlew test \
@@ -67,7 +76,7 @@ jobs:
             -Pgpr.token=${{ secrets.GITHUB_TOKEN }} \
             --no-daemon
 
-      # 5. Publicar (Apenas se for PUSH na develop E a versão mudou)
+      # 5. Publicar (Agora o logic gate vai abrir no PUSH)
       - name: Publish to GitHub Packages
         if: github.event_name == 'push' && steps.check_bump.outputs.changed == 'true'
         run: |
