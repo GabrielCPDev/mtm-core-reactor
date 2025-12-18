@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.iggdrasil"
-version = "0.0.1-rc3-SNAPSHOT"
+version = "0.0.1-rc4-SNAPSHOT"
 description = "Multi-tenancy Manager Reactor Core"
 
 java {
@@ -96,8 +96,8 @@ publishing {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/GabrielCPDev/mtm-core-reactor")
             credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: System.getenv("GITHUB_USERNAME")
-                password = System.getenv("GITHUB_TOKEN")
+                username = project.findProperty("gpr.user")?.toString() ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.token")?.toString() ?: System.getenv("GITHUB_TOKEN")
             }
         }
     }
