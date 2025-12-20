@@ -31,5 +31,5 @@ class RoutingConnectionFactory(
     }
 
     override fun getMetadata(): ConnectionFactoryMetadata =
-        ConnectionFactoryMetadata { "RoutingConnectionFactory" }
+        dataSourceManager.getGlobalR2dbcFactory().metadata
 }
