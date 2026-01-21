@@ -64,28 +64,28 @@ class MultiTenancyAutoConfiguration {
     @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "POSTGRES")
     fun dataSourceManagerPostgres(
         tenantContextHolder: TenantContextHolder,
-        tenantProvider: TenantProvider,
+        properties: MultiTenancyProperties,
         provider: ConnectionProvider<ConnectionFactory>
     ): DataSourceManagerR2dbc =
-        DataSourceManagerR2dbc(tenantContextHolder, tenantProvider, provider)
+        DataSourceManagerR2dbc(tenantContextHolder, properties, provider)
 
     @Bean
     @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "MYSQL")
     fun dataSourceManagerMysql(
         tenantContextHolder: TenantContextHolder,
-        tenantProvider: TenantProvider,
+        properties: MultiTenancyProperties,
         provider: ConnectionProvider<ConnectionFactory>
     ): DataSourceManagerR2dbc =
-        DataSourceManagerR2dbc(tenantContextHolder, tenantProvider, provider)
+        DataSourceManagerR2dbc(tenantContextHolder, properties, provider)
 
     @Bean
     @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "MONGO")
     fun dataSourceManagerMongo(
         tenantContextHolder: TenantContextHolder,
-        tenantProvider: TenantProvider,
+        properties: MultiTenancyProperties,
         provider: ConnectionProvider<MongoDatabase>
     ): DataSourceManagerMongo =
-        DataSourceManagerMongo(tenantContextHolder, tenantProvider, provider)
+        DataSourceManagerMongo(tenantContextHolder, properties, provider)
 
     @Bean
     @ConditionalOnBean(DataSourceManagerR2dbc::class)

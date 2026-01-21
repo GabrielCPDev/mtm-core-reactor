@@ -1,20 +1,22 @@
 package io.iggdrasil.mtm.db.managers
 
+import io.iggdrasil.mtm.commons.tenant.TenancyDBStrategy
 import io.iggdrasil.mtm.commons.tenant.Tenant
+import io.iggdrasil.mtm.config.props.MultiTenancyProperties
 import io.iggdrasil.mtm.config.providers.ConnectionProvider
-import io.iggdrasil.mtm.config.providers.TenantProvider
 import io.iggdrasil.mtm.tenant.TenantContextHolder
 import io.r2dbc.spi.ConnectionFactory
 import kotlinx.coroutines.reactor.awaitSingleOrNull
+import models.ID
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 class DataSourceManagerR2dbc(
     private val tenantContext: TenantContextHolder,
-    private val tenantProvider: TenantProvider,
+    private val properties: MultiTenancyProperties,
     private val connectionProvider: ConnectionProvider<ConnectionFactory>
 ) {
 
-    private val tenantCache = ConcurrentHashMap<String, Tenant>()
     private val connectionCache = ConcurrentHashMap<String, ConnectionFactory>()
 
     @Volatile
@@ -52,11 +54,17 @@ class DataSourceManagerR2dbc(
         }
     }
 
-    private suspend fun createConnection(tenantId: String): ConnectionFactory {
-        val tenant = tenantProvider.getTenantById(tenantId)
-            ?: throw IllegalStateException("Tenant $tenantId not found")
-
-        tenantCache[tenantId] = tenant
+    private fun createConnection(tenantId: String): ConnectionFactory {
+        val tenant = Tenant.reconstitute(
+            id = ID.from(tenantId),
+            clientId = ID.generate(),
+            enabled = true,
+            expiresAt = null,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now(),
+            dataSource = properties.dataSource.type,
+            strategy = TenancyDBStrategy.SCHEMA
+        )
 
         return connectionProvider.createConnection(tenant)
     }
