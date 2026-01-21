@@ -1,20 +1,22 @@
 package io.iggdrasil.mtm.db.managers
 
 import com.mongodb.reactivestreams.client.MongoDatabase
+import io.iggdrasil.mtm.commons.tenant.TenancyDBStrategy
 import io.iggdrasil.mtm.commons.tenant.Tenant
+import io.iggdrasil.mtm.config.props.MultiTenancyProperties
 import io.iggdrasil.mtm.config.providers.ConnectionProvider
-import io.iggdrasil.mtm.config.providers.TenantProvider
 import io.iggdrasil.mtm.tenant.TenantContextHolder
 import kotlinx.coroutines.reactor.awaitSingleOrNull
+import models.ID
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 class DataSourceManagerMongo(
     private val tenantContext: TenantContextHolder,
-    private val tenantProvider: TenantProvider,
+    private val properties: MultiTenancyProperties,
     private val connectionProvider: ConnectionProvider<MongoDatabase>
 ) {
 
-    private val tenantCache = ConcurrentHashMap<String, Tenant>()
     private val databaseCache = ConcurrentHashMap<String, MongoDatabase>()
 
     @Volatile
@@ -52,11 +54,17 @@ class DataSourceManagerMongo(
         }
     }
 
-    private suspend fun createConnection(tenantId: String): MongoDatabase {
-        val tenant = tenantProvider.getTenantById(tenantId)
-            ?: throw IllegalStateException("Tenant $tenantId not found")
-
-        tenantCache[tenantId] = tenant
+    private fun createConnection(tenantId: String): MongoDatabase {
+        val tenant = Tenant.reconstitute(
+            id = ID.from(tenantId),
+            clientId = ID.generate(),
+            enabled = true,
+            expiresAt = null,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now(),
+            dataSource = properties.dataSource.type,
+            strategy = TenancyDBStrategy.SCHEMA
+        )
 
         return connectionProvider.createConnection(tenant)
     }
