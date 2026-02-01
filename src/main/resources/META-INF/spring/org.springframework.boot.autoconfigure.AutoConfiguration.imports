@@ -1,1 +1,2 @@
 io.iggdrasil.mtm.config.injection.MultiTenancyAutoConfiguration
+io.iggdrasil.mtm.config.injection.MultiTenancyWebFluxConfiguration
