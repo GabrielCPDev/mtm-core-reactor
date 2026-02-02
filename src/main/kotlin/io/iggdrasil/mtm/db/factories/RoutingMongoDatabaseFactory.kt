@@ -26,12 +26,9 @@ class RoutingMongoDatabaseFactory(
         return Mono.deferContextual { ctx ->
 
             val scope = ctx.getOrDefault("repo-scope", "TENANT") as String
+            val tenantId = ctx.getOrEmpty<String>("tenant-id").orElse(null)
 
-            val tenantId =
-                ctx.getOrEmpty<String>("tenant-id")
-                    .orElse(null)
-
-            val db =
+            Mono.fromSupplier {
                 if (scope == "GLOBAL") {
                     log.debug("Using GLOBAL Mongo database")
                     dataSourceManager.getGlobalMongoDatabase()
@@ -39,8 +36,7 @@ class RoutingMongoDatabaseFactory(
                     log.debug("Using TENANT Mongo database tenant={}", tenantId)
                     dataSourceManager.getDatabaseForTenant(tenantId)
                 }
-
-            Mono.just(db)
+            }
         }
     }
 
