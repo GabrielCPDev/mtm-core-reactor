@@ -29,14 +29,21 @@ class RoutingConnectionFactory(
 
             if (scope == "GLOBAL") {
                 log.debug("Using GLOBAL R2DBC connection")
-                Mono.from(dataSourceManager.getGlobalR2dbcFactory().create())
+
+                Mono.defer {
+                    Mono.from(dataSourceManager.getGlobalR2dbcFactory().create())
+                }
+
             } else {
                 log.debug("Using TENANT R2DBC connection tenant={}", tenantId)
-                Mono.from(
-                    dataSourceManager
-                        .getFactoryForTenant(tenantId)
-                        .create()
-                )
+
+                Mono.defer {
+                    Mono.from(
+                        dataSourceManager
+                            .getFactoryForTenant(tenantId)
+                            .create()
+                    )
+                }
             }
         }
 
