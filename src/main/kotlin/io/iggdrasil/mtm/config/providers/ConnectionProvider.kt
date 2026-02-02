@@ -1,14 +1,12 @@
 package io.iggdrasil.mtm.config.providers
 
-import io.iggdrasil.mtm.commons.tenant.Tenant
-
 interface ConnectionProvider<T> {
 
-    fun createConnection(tenant: Tenant): T
+    fun createConnection(tenantId: String): T
 
-    suspend fun validateConnection(tenant: Tenant): Boolean
+    suspend fun validateConnection(tenantId: String): Boolean
 
-    fun closeConnection(tenant: Tenant)
+    fun closeConnection(tenantId: String)
 
     fun createGlobalConnection(): T
 
