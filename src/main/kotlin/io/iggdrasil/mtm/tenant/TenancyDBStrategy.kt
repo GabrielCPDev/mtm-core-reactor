@@ -1,4 +1,4 @@
-package io.iggdrasil.mtm.commons.tenant
+package io.iggdrasil.mtm.tenant
 
 enum class TenancyDBStrategy {
     DATABASE,
