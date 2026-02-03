@@ -2,7 +2,6 @@ package io.iggdrasil.mtm.db.managers.postgres
 
 import io.iggdrasil.mtm.config.props.MultiTenancyProperties
 import io.iggdrasil.mtm.tenant.DataSourceType
-import io.iggdrasil.mtm.tenant.TenancyDBStrategy
 import io.iggdrasil.mtm.tenant.TenantContext
 import io.r2dbc.pool.ConnectionPool
 import io.r2dbc.pool.ConnectionPoolConfiguration
@@ -32,19 +31,21 @@ class TenantAwareConnectionFactory(
     @Volatile
     private var globalPool: ConnectionPool? = null
 
+    private val baseDatabase =
+        properties.dataSource.database
+
     override fun create(): Mono<out Connection> =
         Mono.deferContextual {
             TenantContext.read()
                 .defaultIfEmpty("")
                 .flatMap { tenantId ->
                     val pool = resolvePool(tenantId)
-
                     Mono.from(pool.create())
-                        .flatMap { connection ->
-                            applySchemaIfNeeded(connection, tenantId)
-                        }
                 }
         }
+
+    override fun getMetadata(): ConnectionFactoryMetadata =
+        getGlobalPool().metadata
 
     private fun resolvePool(tenantId: String): ConnectionPool =
         if (tenantId.isBlank()) {
@@ -55,50 +56,14 @@ class TenantAwareConnectionFactory(
             getTenantPool(tenantId)
         }
 
-    private fun applySchemaIfNeeded(
-        connection: Connection,
-        tenantId: String
-    ): Mono<Connection> {
-
-        if (
-            tenantId.isBlank() ||
-            properties.strategy != TenancyDBStrategy.SCHEMA
-        ) {
-            return Mono.just(connection)
-        }
-
-        val schemaSql = schemaCommand(tenantId)
-            ?: return Mono.just(connection)
-
-        return Mono.from(connection.createStatement(schemaSql).execute())
-            .thenReturn(connection)
-    }
-
-    private fun schemaCommand(tenantId: String): String? =
-        when (properties.dataSource.type) {
-            DataSourceType.POSTGRES ->
-                "SET search_path TO $tenantId"
-
-            DataSourceType.MYSQL ->
-                "USE $tenantId"
-
-            else -> null
-        }
-
-    override fun getMetadata(): ConnectionFactoryMetadata =
-        getGlobalPool().metadata
-
     private fun getTenantPool(tenantId: String): ConnectionPool {
 
         val cached = pools.computeIfAbsent(tenantId) {
-
             log.info("Creating R2DBC pool for tenant {}", tenantId)
-
-            CachedPool(createPoolForTenant(tenantId))
+            CachedPool(createPool("$baseDatabase-$tenantId"))
         }
 
         cached.lastAccess = System.currentTimeMillis()
-
         return cached.pool
     }
 
@@ -113,27 +78,10 @@ class TenantAwareConnectionFactory(
 
             log.info("Creating GLOBAL R2DBC pool")
 
-            val created = createPool(properties.dataSource.database)
+            val created = createPool(baseDatabase)
             globalPool = created
             return created
         }
-    }
-
-    private fun createPoolForTenant(tenantId: String): ConnectionPool {
-
-        val database =
-            when (properties.strategy) {
-                TenancyDBStrategy.DATABASE ->
-                    "tenant_$tenantId"
-
-                TenancyDBStrategy.SCHEMA ->
-                    properties.dataSource.database
-
-                TenancyDBStrategy.COLLECTION ->
-                    throw IllegalArgumentException("COLLECTION not supported for SQL")
-            }
-
-        return createPool(database)
     }
 
     private fun createPool(database: String): ConnectionPool {
@@ -144,7 +92,7 @@ class TenantAwareConnectionFactory(
             when (ds.type) {
                 DataSourceType.POSTGRES -> "postgresql"
                 DataSourceType.MYSQL -> "mysql"
-                else -> error("Invalid R2DBC type")
+                else -> error("Invalid R2DBC type for SQL")
             }
 
         val options = ConnectionFactoryOptions.builder()
@@ -195,8 +143,7 @@ class TenantAwareConnectionFactory(
             try {
                 log.info("Closing pool tenant={}", tenantId)
                 cached.pool.dispose()
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) {}
         }
 
         pools.clear()
