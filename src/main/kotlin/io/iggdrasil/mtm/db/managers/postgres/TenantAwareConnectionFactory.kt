@@ -34,22 +34,55 @@ class TenantAwareConnectionFactory(
 
     override fun create(): Mono<out Connection> =
         Mono.deferContextual {
-
             TenantContext.read()
                 .defaultIfEmpty("")
                 .flatMap { tenantId ->
-
-                    val pool =
-                        if (tenantId.isBlank()) {
-                            log.debug("Using GLOBAL R2DBC connection")
-                            getGlobalPool()
-                        } else {
-                            log.debug("Using TENANT R2DBC connection tenant={}", tenantId)
-                            getTenantPool(tenantId)
-                        }
+                    val pool = resolvePool(tenantId)
 
                     Mono.from(pool.create())
+                        .flatMap { connection ->
+                            applySchemaIfNeeded(connection, tenantId)
+                        }
                 }
+        }
+
+    private fun resolvePool(tenantId: String): ConnectionPool =
+        if (tenantId.isBlank()) {
+            log.debug("Using GLOBAL R2DBC connection")
+            getGlobalPool()
+        } else {
+            log.debug("Using TENANT R2DBC connection tenant={}", tenantId)
+            getTenantPool(tenantId)
+        }
+
+    private fun applySchemaIfNeeded(
+        connection: Connection,
+        tenantId: String
+    ): Mono<Connection> {
+
+        if (
+            tenantId.isBlank() ||
+            properties.strategy != TenancyDBStrategy.SCHEMA
+        ) {
+            return Mono.just(connection)
+        }
+
+        val schemaSql = schemaCommand(tenantId)
+            ?: return Mono.just(connection)
+
+        return Mono.from(connection.createStatement(schemaSql).execute())
+            .thenReturn(connection)
+    }
+
+    private fun schemaCommand(tenantId: String): String? =
+        when (properties.dataSource.type) {
+            DataSourceType.POSTGRES ->
+                "SET search_path TO $tenantId"
+
+            DataSourceType.MYSQL ->
+                "USE $tenantId"
+
+            else -> null
         }
 
     override fun getMetadata(): ConnectionFactoryMetadata =
@@ -85,8 +118,6 @@ class TenantAwareConnectionFactory(
             return created
         }
     }
-
-    /* ---------------- POOL CREATION ---------------- */
 
     private fun createPoolForTenant(tenantId: String): ConnectionPool {
 
