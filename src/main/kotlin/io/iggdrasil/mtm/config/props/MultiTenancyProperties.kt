@@ -6,8 +6,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = "mtm")
 data class MultiTenancyProperties(
+
     var dataSource: DataSourceProperties = DataSourceProperties(),
-    val strategy: TenancyDBStrategy = TenancyDBStrategy.SCHEMA
+
+    val strategy: TenancyDBStrategy = TenancyDBStrategy.SCHEMA,
+
+    var repositories: RepositoryPackagesProperties =
+        RepositoryPackagesProperties()
 ) {
 
     init {
@@ -27,3 +32,4 @@ data class MultiTenancyProperties(
         }
     }
 }
+
