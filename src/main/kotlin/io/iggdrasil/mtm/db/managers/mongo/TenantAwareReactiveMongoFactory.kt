@@ -6,7 +6,6 @@ import com.mongodb.reactivestreams.client.MongoClient
 import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoDatabase
 import io.iggdrasil.mtm.config.props.MultiTenancyProperties
-import io.iggdrasil.mtm.tenant.TenancyDBStrategy
 import io.iggdrasil.mtm.tenant.TenantContext
 import jakarta.annotation.PreDestroy
 import org.bson.codecs.configuration.CodecRegistry
@@ -48,55 +47,45 @@ class TenantAwareReactiveMongoFactory(
         MongoClients.create(defaultUri)
     }
 
+    private val defaultDb =
+        properties.dataSource.database
+
     private val fallback =
         SimpleReactiveMongoDatabaseFactory(
             defaultClient,
-            properties.dataSource.database
+            defaultDb
         )
 
     override fun getMongoDatabase(): Mono<MongoDatabase> {
         return Mono.deferContextual {
 
             TenantContext.read()
-                .map { tenantId ->
+                .flatMap { tenantId ->
 
                     val cached = clients.computeIfAbsent(tenantId) {
-                        log.info("Creating Mongo client for tenant {}", tenantId)
+                        log.info("Creating Mongo client tenant={}", tenantId)
                         CachedClient(MongoClients.create(defaultUri))
                     }
 
                     cached.lastAccess = System.currentTimeMillis()
 
-                    val dbName =
-                        when (properties.strategy) {
-                            TenancyDBStrategy.DATABASE ->
-                                "tenant_$tenantId"
-
-                            TenancyDBStrategy.COLLECTION ->
-                                properties.dataSource.database
-
-                            TenancyDBStrategy.SCHEMA ->
-                                throw IllegalArgumentException(
-                                    "SCHEMA not supported for Mongo"
-                                )
-                        }
+                    val dbName = "$defaultDb-$tenantId"
 
                     log.debug(
-                        "Using Mongo database {} tenant={}",
+                        "Using tenant Mongo database={} tenant={}",
                         dbName,
                         tenantId
                     )
 
-                    cached.client.getDatabase(dbName)
+                    Mono.just(cached.client.getDatabase(dbName))
                 }
-        }.switchIfEmpty(
-            Mono.fromSupplier {
-                log.debug("Using GLOBAL Mongo database")
-                defaultClient.getDatabase(
-                    properties.dataSource.database
-                )
-            }
-        )
+        }
+            .switchIfEmpty(
+                Mono.fromSupplier {
+                    log.debug("Using GLOBAL Mongo database={}", defaultDb)
+                    defaultClient.getDatabase(defaultDb)
+                }
+            )
     }
 
     override fun getMongoDatabase(dbName: String): Mono<MongoDatabase> =
