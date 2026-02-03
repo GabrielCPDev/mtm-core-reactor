@@ -2,17 +2,9 @@ package io.iggdrasil.mtm.config.injection
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.mongodb.reactivestreams.client.MongoDatabase
 import io.iggdrasil.mtm.config.props.MultiTenancyProperties
-import io.iggdrasil.mtm.config.providers.ConnectionProvider
-import io.iggdrasil.mtm.db.factories.RoutingConnectionFactory
-import io.iggdrasil.mtm.db.factories.RoutingMongoDatabaseFactory
-import io.iggdrasil.mtm.db.managers.DataSourceManagerMongo
-import io.iggdrasil.mtm.db.managers.DataSourceManagerR2dbc
-import io.iggdrasil.mtm.db.providers.mongo.MongoReactiveProvider
-import io.iggdrasil.mtm.db.providers.mysql.MysqlR2dbcProvider
-import io.iggdrasil.mtm.db.providers.pg.PostgresR2dbcProvider
-import io.r2dbc.spi.ConnectionFactory
+import io.iggdrasil.mtm.db.managers.mongo.TenantAwareReactiveMongoFactory
+import io.iggdrasil.mtm.db.managers.postgres.TenantAwareConnectionFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -20,7 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
-import org.springframework.data.mongodb.ReactiveMongoDatabaseFactory
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate
 
 @AutoConfiguration
 @EnableConfigurationProperties(MultiTenancyProperties::class)
@@ -35,67 +27,41 @@ class MultiTenancyAutoConfiguration {
         }
 
     @Bean
-    @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "POSTGRES")
-    fun postgresConnectionProvider(
+    @ConditionalOnProperty(
+        prefix = "mtm.data-source",
+        name = ["type"],
+        havingValue = "MONGO"
+    )
+    fun tenantMongoFactory(
         properties: MultiTenancyProperties
-    ): ConnectionProvider<ConnectionFactory> =
-        PostgresR2dbcProvider(properties)
-
-    @Bean
-    @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "MYSQL")
-    fun mysqlConnectionProvider(
-        properties: MultiTenancyProperties
-    ): ConnectionProvider<ConnectionFactory> =
-        MysqlR2dbcProvider(properties)
-
-    @Bean
-    @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "MONGO")
-    fun mongoConnectionProvider(
-        properties: MultiTenancyProperties
-    ): ConnectionProvider<MongoDatabase> =
-        MongoReactiveProvider(properties)
-
-    @Bean
-    @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "POSTGRES")
-    fun dataSourceManagerPostgres(
-        provider: ConnectionProvider<ConnectionFactory>
-    ): DataSourceManagerR2dbc =
-        DataSourceManagerR2dbc(provider)
-
-    @Bean
-    @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "MYSQL")
-    fun dataSourceManagerMysql(
-        provider: ConnectionProvider<ConnectionFactory>
-    ): DataSourceManagerR2dbc =
-        DataSourceManagerR2dbc(provider)
-
-    @Bean
-    @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "MONGO")
-    fun dataSourceManagerMongo(
-        provider: ConnectionProvider<MongoDatabase>
-    ): DataSourceManagerMongo =
-        DataSourceManagerMongo(provider)
-
-    @Bean
-    @ConditionalOnBean(DataSourceManagerR2dbc::class)
-    fun routingConnectionFactory(
-        dataSourceManager: DataSourceManagerR2dbc
-    ): RoutingConnectionFactory =
-        RoutingConnectionFactory(dataSourceManager)
+    ): TenantAwareReactiveMongoFactory =
+        TenantAwareReactiveMongoFactory(properties)
 
     @Bean
     @Primary
-    @ConditionalOnBean(RoutingConnectionFactory::class)
-    fun connectionFactory(
-        routing: RoutingConnectionFactory
-    ): ConnectionFactory = routing
+    @ConditionalOnBean(TenantAwareReactiveMongoFactory::class)
+    fun tenantReactiveMongoTemplate(
+        factory: TenantAwareReactiveMongoFactory
+    ): ReactiveMongoTemplate =
+        ReactiveMongoTemplate(factory)
 
+    @Bean
+    @ConditionalOnProperty(
+        prefix = "mtm.data-source",
+        name = ["type"],
+        havingValue = "POSTGRES"
+    )
+    fun tenantConnectionFactoryPostgres(
+        properties: MultiTenancyProperties
+    ) = TenantAwareConnectionFactory(properties)
 
-    @Primary
-    @Bean(name = ["mongoDatabaseFactory", "routingMongoDatabaseFactory"])
-    @ConditionalOnBean(DataSourceManagerMongo::class)
-    fun routingMongoDatabaseFactory(
-        manager: DataSourceManagerMongo
-    ): ReactiveMongoDatabaseFactory =
-        RoutingMongoDatabaseFactory(manager)
+    @Bean
+    @ConditionalOnProperty(
+        prefix = "mtm.data-source",
+        name = ["type"],
+        havingValue = "MYSQL"
+    )
+    fun tenantConnectionFactoryMysql(
+        properties: MultiTenancyProperties
+    ) = TenantAwareConnectionFactory(properties)
 }

@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.iggdrasil"
-version = "0.0.1-rc11-SNAPSHOT"
+version = "0.0.1-rc12-SNAPSHOT"
 description = "Multi-tenancy Manager Reactor Core"
 
 java {
