@@ -1,6 +1,7 @@
 package io.iggdrasil.mtm.db.managers.postgres
 
 import io.iggdrasil.mtm.config.props.MultiTenancyProperties
+import io.iggdrasil.mtm.db.managers.CachedDbResource
 import io.iggdrasil.mtm.tenant.DataSourceType
 import io.iggdrasil.mtm.tenant.TenantContext
 import io.r2dbc.pool.ConnectionPool
@@ -21,12 +22,10 @@ class TenantAwareConnectionFactory(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private data class CachedPool(
-        val pool: ConnectionPool,
-        @Volatile var lastAccess: Long = System.currentTimeMillis()
-    )
+    private val pools = ConcurrentHashMap<String, CachedDbResource<ConnectionPool>>()
 
-    private val pools = ConcurrentHashMap<String, CachedPool>()
+    val activePools: Map<String, CachedDbResource<ConnectionPool>>
+        get() = pools
 
     @Volatile
     private var globalPool: ConnectionPool? = null
@@ -57,14 +56,13 @@ class TenantAwareConnectionFactory(
         }
 
     private fun getTenantPool(tenantId: String): ConnectionPool {
-
         val cached = pools.computeIfAbsent(tenantId) {
             log.info("Creating R2DBC pool for tenant {}", tenantId)
-            CachedPool(createPool("$baseDatabase-$tenantId"))
+            CachedDbResource(createPool("$baseDatabase-$tenantId"))
         }
 
-        cached.lastAccess = System.currentTimeMillis()
-        return cached.pool
+        cached.touch()
+        return cached.resource
     }
 
     private fun getGlobalPool(): ConnectionPool {
@@ -117,38 +115,25 @@ class TenantAwareConnectionFactory(
 
     @Scheduled(fixedDelay = 300000)
     fun cleanupPools() {
-
-        val now = System.currentTimeMillis()
         val ttl = 30 * 60 * 1000L
 
         pools.entries.removeIf { (tenantId, cached) ->
-
-            val expired = now - cached.lastAccess > ttl
-
-            if (expired) {
+            if (cached.isExpired(ttl)) {
                 log.debug("Cleaning idle pool tenant={}", tenantId)
-                cached.pool.dispose()
-            }
-
-            expired
+                cached.resource.dispose()
+                true
+            } else false
         }
     }
 
     @PreDestroy
     fun shutdown() {
-
         log.info("Shutting down TenantAwareConnectionFactory")
-
-        pools.forEach { (tenantId, cached) ->
-            try {
-                log.info("Closing pool tenant={}", tenantId)
-                cached.pool.dispose()
-            } catch (_: Exception) {}
+        pools.forEach { (id, cached) ->
+            log.info("Closing pool tenant={}", id)
+            cached.resource.dispose()
         }
-
         pools.clear()
-
         globalPool?.dispose()
-        globalPool = null
     }
 }
