@@ -11,6 +11,7 @@ import io.iggdrasil.mtm.tenant.TenantContext
 import jakarta.annotation.PreDestroy
 import org.bson.codecs.configuration.CodecRegistry
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.dao.support.PersistenceExceptionTranslator
 import org.springframework.data.mongodb.ReactiveMongoDatabaseFactory
 import org.springframework.data.mongodb.core.MongoExceptionTranslator
@@ -21,6 +22,7 @@ import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
 
 @Component
+@ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "MONGO")
 class TenantAwareReactiveMongoFactory(
     private val properties: MultiTenancyProperties
 ) : ReactiveMongoDatabaseFactory {
