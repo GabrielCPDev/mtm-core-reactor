@@ -9,6 +9,7 @@ import io.r2dbc.pool.ConnectionPoolConfiguration
 import io.r2dbc.spi.*
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import reactor.core.publisher.Mono
@@ -16,6 +17,7 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 @Component
+@ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "POSTGRES")
 class TenantAwareConnectionFactory(
     private val properties: MultiTenancyProperties
 ) : ConnectionFactory {
