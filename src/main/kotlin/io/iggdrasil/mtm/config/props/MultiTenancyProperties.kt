@@ -9,16 +9,5 @@ data class MultiTenancyProperties(
 
     var repositories: RepositoryPackagesProperties =
         RepositoryPackagesProperties()
-) {
-
-    init {
-        require(dataSource.username.isNotBlank()) {
-            "mtm.data-source.username is required"
-        }
-
-        require(dataSource.password.isNotBlank()) {
-            "mtm.data-source.password is required"
-        }
-    }
-}
+)
 
