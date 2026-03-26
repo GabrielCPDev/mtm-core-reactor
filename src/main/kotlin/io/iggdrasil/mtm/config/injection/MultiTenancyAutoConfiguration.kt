@@ -4,16 +4,23 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.iggdrasil.mtm.config.props.MultiTenancyProperties
 import io.iggdrasil.mtm.db.managers.mongo.TenantAwareReactiveMongoFactory
-import io.iggdrasil.mtm.db.managers.postgres.TenantAwareConnectionFactory
+import io.iggdrasil.mtm.db.managers.postgres.TenantAwareR2dbcConnectionFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
+import org.springframework.boot.r2dbc.autoconfigure.R2dbcAutoConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate
 
-@AutoConfiguration
+@AutoConfiguration(
+    before = [
+        MongoReactiveAutoConfiguration::class,
+        R2dbcAutoConfiguration::class
+    ]
+)
 @EnableConfigurationProperties(MultiTenancyProperties::class)
 class MultiTenancyAutoConfiguration {
 
@@ -43,20 +50,23 @@ class MultiTenancyAutoConfiguration {
         name = ["type"],
         havingValue = "MONGO"
     )
-    fun tenantReactiveMongoTemplate(
+    fun reactiveMongoTemplate(
         factory: TenantAwareReactiveMongoFactory
     ): ReactiveMongoTemplate =
         ReactiveMongoTemplate(factory)
 
+
     @Bean
+    @Primary
     @ConditionalOnProperty(
         prefix = "mtm.data-source",
         name = ["type"],
         havingValue = "POSTGRES"
     )
-    fun tenantConnectionFactoryPostgres(
+    fun connectionFactory(
         properties: MultiTenancyProperties
-    ) = TenantAwareConnectionFactory(properties)
+    ): TenantAwareR2dbcConnectionFactory =
+        TenantAwareR2dbcConnectionFactory(properties)
 
     @Bean
     @ConditionalOnProperty(
@@ -66,5 +76,6 @@ class MultiTenancyAutoConfiguration {
     )
     fun tenantConnectionFactoryMysql(
         properties: MultiTenancyProperties
-    ) = TenantAwareConnectionFactory(properties)
+    ): TenantAwareR2dbcConnectionFactory =
+        TenantAwareR2dbcConnectionFactory(properties)
 }
