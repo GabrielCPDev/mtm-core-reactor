@@ -51,7 +51,6 @@ class TenantAwareReactiveMongoFactory(
         return Mono.deferContextual {
             TenantContext.read()
                 .flatMap { tenantId ->
-                    // 3. Usa o CachedDbResource e o método touch()
                     val cached = clients.computeIfAbsent(tenantId) {
                         log.info("Creating Mongo client tenant={}", tenantId)
                         CachedDbResource(MongoClients.create(defaultUri))
