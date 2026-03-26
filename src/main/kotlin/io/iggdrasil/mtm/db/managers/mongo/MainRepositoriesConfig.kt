@@ -1,6 +1,7 @@
 package io.iggdrasil.mtm.db.managers.mongo
 
 import com.mongodb.reactivestreams.client.MongoClients
+import io.iggdrasil.mtm.config.props.MultiTenancyProperties
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
@@ -12,22 +13,16 @@ import org.springframework.data.mongodb.repository.config.EnableReactiveMongoRep
 @Configuration
 @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "MONGO")
 @EnableReactiveMongoRepositories(
-    basePackages = ["\${mtm.repositories.main-packages}"],
+    basePackages = ["#{multiTenancyProperties.repositories.main}"],
     reactiveMongoTemplateRef = "mainTemplate"
 )
-class MainRepositoriesConfig {
+class MainRepositoriesConfig(private val properties: MultiTenancyProperties) {
 
     @Bean
-    fun mainTemplate(
-        @Value("\${spring.data.mongodb.uri}") uri: String,
-        @Value("\${spring.data.mongodb.database}") db: String
-    ): ReactiveMongoTemplate {
-        val factory =
-            SimpleReactiveMongoDatabaseFactory(
-                MongoClients.create(uri),
-                db
-            )
-
+    fun mainTemplate(): ReactiveMongoTemplate {
+        val ds = properties.dataSource
+        val uri = "mongodb://${ds.host}:${ds.port}"
+        val factory = SimpleReactiveMongoDatabaseFactory(MongoClients.create(uri), ds.database)
         return ReactiveMongoTemplate(factory)
     }
 }

@@ -10,15 +10,12 @@ import org.springframework.data.mongodb.repository.config.EnableReactiveMongoRep
 @Configuration
 @ConditionalOnProperty(prefix = "mtm.data-source", name = ["type"], havingValue = "MONGO")
 @EnableReactiveMongoRepositories(
-    basePackages = ["\${mtm.repositories.tenant-packages}"],
-    reactiveMongoTemplateRef = "tenantTemplate"
+    basePackages = ["#{multiTenancyProperties.repositories.tenant}"],
+    reactiveMongoTemplateRef = "reactiveMongoTemplate"
 )
-class TenantMongoConfig(
-    private val tenantFactory: TenantAwareReactiveMongoFactory
-) {
+class TenantMongoConfig(private val tenantFactory: TenantAwareReactiveMongoFactory) {
 
-    @Bean
+    @Bean(name = ["reactiveMongoTemplate", "tenantTemplate"])
     @Primary
-    fun tenantTemplate(): ReactiveMongoTemplate =
-        ReactiveMongoTemplate(tenantFactory)
+    fun reactiveMongoTemplate(): ReactiveMongoTemplate = ReactiveMongoTemplate(tenantFactory)
 }

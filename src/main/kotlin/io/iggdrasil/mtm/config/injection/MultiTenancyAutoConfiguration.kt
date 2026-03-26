@@ -55,7 +55,6 @@ class MultiTenancyAutoConfiguration {
     ): ReactiveMongoTemplate =
         ReactiveMongoTemplate(factory)
 
-
     @Bean
     @Primary
     @ConditionalOnProperty(
