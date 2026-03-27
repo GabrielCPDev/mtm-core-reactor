@@ -6,13 +6,10 @@ import io.iggdrasil.mtm.config.props.MultiTenancyProperties
 import io.iggdrasil.mtm.db.managers.mongo.TenantAwareReactiveMongoFactory
 import io.iggdrasil.mtm.db.managers.postgres.TenantAwareConnectionFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Primary
-import org.springframework.data.mongodb.core.ReactiveMongoTemplate
 
 @AutoConfiguration
 @EnableConfigurationProperties(MultiTenancyProperties::class)
@@ -36,14 +33,6 @@ class MultiTenancyAutoConfiguration {
         properties: MultiTenancyProperties
     ): TenantAwareReactiveMongoFactory =
         TenantAwareReactiveMongoFactory(properties)
-
-    @Bean
-    @Primary
-    @ConditionalOnBean(TenantAwareReactiveMongoFactory::class)
-    fun tenantReactiveMongoTemplate(
-        factory: TenantAwareReactiveMongoFactory
-    ): ReactiveMongoTemplate =
-        ReactiveMongoTemplate(factory)
 
     @Bean
     @ConditionalOnProperty(
