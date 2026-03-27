@@ -8,8 +8,9 @@ plugins {
 }
 
 group = "io.iggdrasil"
-version = "0.0.1-rc24-SNAPSHOT"
-description = "Multi-tenancy Manager Reactor Core"
+
+version = "1.0.0-rc1-SNAPSHOT"
+
 
 java {
     withSourcesJar()
