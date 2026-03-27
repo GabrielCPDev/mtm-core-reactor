@@ -2,14 +2,15 @@ plugins {
     kotlin("jvm") version "2.2.21"
     kotlin("plugin.spring") version "2.2.21"
     kotlin("kapt")
-    id("org.springframework.boot") version "4.0.0"
+    id("org.springframework.boot") version "4.0.4"
     id("io.spring.dependency-management") version "1.1.7"
     id("maven-publish")
 }
 
 group = "io.iggdrasil"
+
 version = "1.0.0-rc1-SNAPSHOT"
-description = "Multi-tenancy Manager Reactor Core"
+
 
 java {
     withSourcesJar()
