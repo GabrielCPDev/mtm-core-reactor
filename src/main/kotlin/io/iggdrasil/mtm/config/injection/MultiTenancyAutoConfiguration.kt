@@ -6,12 +6,24 @@ import io.iggdrasil.mtm.config.props.MultiTenancyProperties
 import io.iggdrasil.mtm.db.managers.mongo.TenantAwareReactiveMongoFactory
 import io.iggdrasil.mtm.db.managers.postgres.TenantAwareR2dbcConnectionFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.r2dbc.autoconfigure.R2dbcAutoConfiguration
+import org.springframework.boot.r2dbc.autoconfigure.R2dbcTransactionManagerAutoConfiguration
 import org.springframework.context.annotation.Bean
+
 @AutoConfiguration
 @EnableConfigurationProperties(MultiTenancyProperties::class)
+@EnableAutoConfiguration(
+    excludeName = [
+        "org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration",
+        "org.springframework.boot.autoconfigure.r2dbc.R2dbcDataAutoConfiguration",
+        "org.springframework.boot.autoconfigure.r2dbc.R2dbcRepositoriesAutoConfiguration",
+        "org.springframework.boot.autoconfigure.r2dbc.R2dbcTransactionManagerAutoConfiguration"
+    ]
+)
 class MultiTenancyAutoConfiguration {
 
     @Bean
