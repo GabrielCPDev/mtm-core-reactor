@@ -8,5 +8,6 @@ data class DataSourceProperties(
     var port: Int,
     var username: String = "",
     var password: String = "",
+    var database: String,
     var maxPoolSize: Int
 )
