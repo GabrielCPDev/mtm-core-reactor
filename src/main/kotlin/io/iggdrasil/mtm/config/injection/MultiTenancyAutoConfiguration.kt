@@ -6,10 +6,13 @@ import io.iggdrasil.mtm.config.props.MultiTenancyProperties
 import io.iggdrasil.mtm.db.managers.mongo.TenantAwareReactiveMongoFactory
 import io.iggdrasil.mtm.db.managers.postgres.TenantAwareConnectionFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate
 
 @AutoConfiguration
 @EnableConfigurationProperties(MultiTenancyProperties::class)
@@ -17,11 +20,10 @@ class MultiTenancyAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun objectMapper(): ObjectMapper =
-        ObjectMapper().apply {
-            registerModule(KotlinModule.Builder().build())
-            findAndRegisterModules()
-        }
+    fun objectMapper(): ObjectMapper = ObjectMapper().apply {
+        registerModule(KotlinModule.Builder().build())
+        findAndRegisterModules()
+    }
 
     @Bean
     @ConditionalOnProperty(

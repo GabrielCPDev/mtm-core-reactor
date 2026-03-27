@@ -2,7 +2,7 @@ package io.iggdrasil.mtm.db.metrics
 
 import io.iggdrasil.mtm.config.props.MultiTenancyProperties
 import io.iggdrasil.mtm.db.managers.mongo.TenantAwareReactiveMongoFactory
-import io.iggdrasil.mtm.db.managers.postgres.TenantAwareConnectionFactory
+import io.iggdrasil.mtm.db.managers.postgres.TenantAwareR2dbcConnectionFactory
 import io.iggdrasil.mtm.models.MtMResourceReport
 import io.iggdrasil.mtm.models.MtMStatusResponse
 import io.iggdrasil.mtm.models.MtMTenantDetail
@@ -12,7 +12,7 @@ import java.time.Instant
 
 @Component
 class MtMInspector(
-    @Lazy private val r2dbc: TenantAwareConnectionFactory,
+    @Lazy private val r2dbc: TenantAwareR2dbcConnectionFactory,
     @Lazy private val mongo: TenantAwareReactiveMongoFactory,
     private val props: MultiTenancyProperties
 ) {

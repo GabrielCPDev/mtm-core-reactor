@@ -18,6 +18,6 @@ class TenantR2dbcRepositoriesConfig {
     @Bean
     @Primary
     fun tenantEntityTemplate(
-        tenantConnectionFactory: TenantAwareConnectionFactory
+        tenantConnectionFactory: TenantAwareR2dbcConnectionFactory
     ): R2dbcEntityTemplate = R2dbcEntityTemplate(tenantConnectionFactory)
 }
