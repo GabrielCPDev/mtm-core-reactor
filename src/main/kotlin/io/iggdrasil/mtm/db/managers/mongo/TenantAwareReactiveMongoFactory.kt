@@ -73,7 +73,7 @@ class TenantAwareReactiveMongoFactory(
             )
     }
 
-    override fun getMongoDatabase(dbName: String): Mono<MongoDatabase> = mongoDatabase
+    override fun getMongoDatabase(dbName: String): Mono<MongoDatabase> = getMongoDatabase(dbName)
     override fun getCodecRegistry(): CodecRegistry = fallback.codecRegistry
     override fun getExceptionTranslator(): PersistenceExceptionTranslator = MongoExceptionTranslator()
     override fun getSession(options: ClientSessionOptions) = fallback.getSession(options)
