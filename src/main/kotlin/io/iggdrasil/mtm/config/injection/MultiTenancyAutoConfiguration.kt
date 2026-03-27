@@ -4,16 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.iggdrasil.mtm.config.props.MultiTenancyProperties
 import io.iggdrasil.mtm.db.managers.mongo.TenantAwareReactiveMongoFactory
-import io.iggdrasil.mtm.db.managers.postgres.TenantAwareConnectionFactory
+import io.iggdrasil.mtm.db.managers.postgres.TenantAwareR2dbcConnectionFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Primary
-import org.springframework.data.mongodb.core.ReactiveMongoTemplate
-
 @AutoConfiguration
 @EnableConfigurationProperties(MultiTenancyProperties::class)
 class MultiTenancyAutoConfiguration {
@@ -44,7 +40,7 @@ class MultiTenancyAutoConfiguration {
     )
     fun tenantConnectionFactoryPostgres(
         properties: MultiTenancyProperties
-    ) = TenantAwareConnectionFactory(properties)
+    ) = TenantAwareR2dbcConnectionFactory(properties)
 
     @Bean
     @ConditionalOnProperty(
@@ -54,5 +50,5 @@ class MultiTenancyAutoConfiguration {
     )
     fun tenantConnectionFactoryMysql(
         properties: MultiTenancyProperties
-    ) = TenantAwareConnectionFactory(properties)
+    ) = TenantAwareR2dbcConnectionFactory(properties)
 }
