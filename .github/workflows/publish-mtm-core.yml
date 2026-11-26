@@ -15,6 +15,15 @@ permissions:
 jobs:
   validate-and-publish:
     runs-on: ubuntu-latest
+    # Mongo para o teste de integração do modo MONGO (o Postgres dos testes é embutido).
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    env:
+      MTM_TEST_MONGO_HOST: localhost
+      MTM_TEST_MONGO_PORT: 27017
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,3 +95,34 @@ jobs:
             --no-daemon
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Retencao: o GitHub Packages guarda no maximo KEEP versoes desta lib.
+      # Depois de publicar, apaga as versoes mais antigas (mantem as KEEP mais novas;
+      # a recem-publicada nunca e apagada). Mesma regra da esteira do celo delivery.
+      - name: Prune old versions (keep 3)
+        if: github.event_name == 'push' && steps.check_bump.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          OWNER_TYPE: ${{ github.event.repository.owner.type }}
+          PACKAGE: io.igdrasil.mtm.mtm-core-reactor
+          KEEP: 3
+          CURRENT_VERSION: ${{ steps.curr_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$OWNER_TYPE" = "Organization" ]; then BASE="/orgs/$OWNER"; else BASE="/users/$OWNER"; fi
+          API="$BASE/packages/maven/$PACKAGE/versions"
+
+          gh api --paginate "$API?per_page=100" \
+            --jq '.[] | {id, name, created_at}' | jq -s 'sort_by(.created_at) | reverse' > versions.json
+          echo "Versoes publicadas: $(jq 'length' versions.json) (mantendo $KEEP)"
+
+          # Alem das KEEP mais novas (nunca a recem-publicada).
+          jq -r --argjson keep "$KEEP" --arg cur "$CURRENT_VERSION" \
+            '.[$keep:][] | select(.name != $cur) | "\(.id) \(.name)"' versions.json > delete.txt
+
+          if [ ! -s delete.txt ]; then echo "Nada a apagar."; exit 0; fi
+          while read -r id name; do
+            echo "Apagando versao $name ($id)"
+            gh api -X DELETE "$API/$id"
+          done < delete.txt
