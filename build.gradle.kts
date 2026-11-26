@@ -2,13 +2,13 @@ plugins {
     kotlin("jvm") version "2.2.21"
     kotlin("plugin.spring") version "2.2.21"
     kotlin("kapt")
-    id("org.springframework.boot") version "4.0.0"
+    id("org.springframework.boot") version "4.2.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("maven-publish")
 }
 
-group = "io.igdrasil"
-version = "0.0.1-rc1-SNAPSHOT"
+group = "io.iggdrasil"
+version = "1.1.0"
 description = "Multi-tenancy Manager Reactor Core"
 
 java {
@@ -20,9 +20,6 @@ java {
 }
 
 dependencies {
-    // Shared / Commons
-    implementation("com.iggdrasil.shared:commons:1.0.9-SNAPSHOT")
-
     // Spring Boot Starters
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
@@ -58,6 +55,8 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     testImplementation("io.projectreactor:reactor-test")
+    // Postgres de verdade nos testes, sem Docker (binarios embutidos)
+    testImplementation("io.zonky.test:embedded-postgres:2.1.0")
     testImplementation("io.mockk:mockk:1.13.8")
 
     testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.4"))
@@ -83,11 +82,10 @@ tasks.withType<Test> {
 publishing {
     publications {
         create<MavenPublication>("gpr") {
-            groupId = "io.igdrasil"
+            groupId = "io.igdrasil.mtm"
             artifactId = "mtm-core-reactor"
             version = project.version.toString()
 
-            // Publica o JAR padrão do projeto (incluindo dependências via Gradle metadata)
             from(components["java"])
         }
     }
@@ -95,10 +93,10 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/GabrielCPDev/multi-tenancy-manager")
+            url = uri("https://maven.pkg.github.com/gabrielcpdev/mtm-core-reactor")
             credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: System.getenv("GITHUB_USERNAME")
-                password = System.getenv("GITHUB_TOKEN")
+                username = project.findProperty("gpr.user")?.toString() ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.token")?.toString() ?: System.getenv("GITHUB_TOKEN")
             }
         }
     }

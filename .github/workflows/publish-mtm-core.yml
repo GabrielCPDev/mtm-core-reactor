@@ -15,11 +15,20 @@ permissions:
 jobs:
   validate-and-publish:
     runs-on: ubuntu-latest
+    # Mongo para o teste de integração do modo MONGO (o Postgres dos testes é embutido).
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    env:
+      MTM_TEST_MONGO_HOST: localhost
+      MTM_TEST_MONGO_PORT: 27017
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Necessário para comparar versões com branches remotos
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -31,35 +40,44 @@ jobs:
       - name: Grant exec permission
         run: chmod +x gradlew
 
-      # 1. Extrair Versão Atual (do PR/Branch atual)
+      # 1. Extrair Versão Atual
       - name: Extract current version
         id: curr_version
         run: |
-          VERSION=$(grep -E '^version\s*=' build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          # Pega a versão tratando aspas simples ou duplas
+          VERSION=$(grep -E '^version\s*=' build.gradle.kts | sed "s/.*['\"]\(.*\)['\"].*/\1/")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # 2. Extrair Versão da Develop (para comparação)
+      # 2. Extrair Versão Base (Lógica corrigida para Push vs PR)
       - name: Extract base version
         id: base_version
         run: |
-          git fetch origin develop
-          git show origin/develop:build.gradle.kts > base-build.gradle.kts
-          VERSION=$(grep -E '^version\s*=' base-build.gradle.kts | sed 's/.*"\(.*\)".*/\1/' || echo "0.0.0")
+          if [ "${{ github.event_name }}" == "push" ]; then
+            # No PUSH na develop, comparamos com o commit imediatamente anterior ao merge
+            git show HEAD~1:build.gradle.kts > base-build.gradle.kts || echo 'version = "0.0.0"' > base-build.gradle.kts
+          else
+            # No PR, comparamos com a versão que está na develop remota agora
+            git fetch origin develop
+            git show origin/develop:build.gradle.kts > base-build.gradle.kts || echo 'version = "0.0.0"' > base-build.gradle.kts
+          fi
+          VERSION=$(grep -E '^version\s*=' base-build.gradle.kts | sed "s/.*['\"]\(.*\)['\"].*/\1/" || echo "0.0.0")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # 3. Comparar Versões
       - name: Check if version bumped
         id: check_bump
         run: |
+          echo "Versão Base: ${{ steps.base_version.outputs.version }}"
+          echo "Versão Atual: ${{ steps.curr_version.outputs.version }}"
           if [ "${{ steps.curr_version.outputs.version }}" != "${{ steps.base_version.outputs.version }}" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
-            echo "Versão alterada de ${{ steps.base_version.outputs.version }} para ${{ steps.curr_version.outputs.version }}"
+            echo "MUDANÇA DETECTADA: Publicação autorizada."
           else
             echo "changed=false" >> $GITHUB_OUTPUT
-            echo "A versão não foi incrementada."
+            echo "SEM MUDANÇA: O passo de publicação será pulado."
           fi
 
-      # 4. Rodar Testes (Sempre roda no PR para validar a conclusão do PR)
+      # 4. Rodar Testes
       - name: Run Tests
         run: |
           ./gradlew test \
@@ -67,7 +85,7 @@ jobs:
             -Pgpr.token=${{ secrets.GITHUB_TOKEN }} \
             --no-daemon
 
-      # 5. Publicar (Apenas se for PUSH na develop E a versão mudou)
+      # 5. Publicar (Agora o logic gate vai abrir no PUSH)
       - name: Publish to GitHub Packages
         if: github.event_name == 'push' && steps.check_bump.outputs.changed == 'true'
         run: |
@@ -77,3 +95,34 @@ jobs:
             --no-daemon
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Retencao: o GitHub Packages guarda no maximo KEEP versoes desta lib.
+      # Depois de publicar, apaga as versoes mais antigas (mantem as KEEP mais novas;
+      # a recem-publicada nunca e apagada). Mesma regra da esteira do celo delivery.
+      - name: Prune old versions (keep 3)
+        if: github.event_name == 'push' && steps.check_bump.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          OWNER_TYPE: ${{ github.event.repository.owner.type }}
+          PACKAGE: io.igdrasil.mtm.mtm-core-reactor
+          KEEP: 3
+          CURRENT_VERSION: ${{ steps.curr_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$OWNER_TYPE" = "Organization" ]; then BASE="/orgs/$OWNER"; else BASE="/users/$OWNER"; fi
+          API="$BASE/packages/maven/$PACKAGE/versions"
+
+          gh api --paginate "$API?per_page=100" \
+            --jq '.[] | {id, name, created_at}' | jq -s 'sort_by(.created_at) | reverse' > versions.json
+          echo "Versoes publicadas: $(jq 'length' versions.json) (mantendo $KEEP)"
+
+          # Alem das KEEP mais novas (nunca a recem-publicada).
+          jq -r --argjson keep "$KEEP" --arg cur "$CURRENT_VERSION" \
+            '.[$keep:][] | select(.name != $cur) | "\(.id) \(.name)"' versions.json > delete.txt
+
+          if [ ! -s delete.txt ]; then echo "Nada a apagar."; exit 0; fi
+          while read -r id name; do
+            echo "Apagando versao $name ($id)"
+            gh api -X DELETE "$API/$id"
+          done < delete.txt
