@@ -31,6 +31,13 @@ class TenantAwareR2dbcConnectionFactory(
     private val baseDatabase =
         properties.dataSource.database
 
+    /**
+     * O pool do banco GLOBAL, fixo: não olha o tenant do contexto. É a base do template dos
+     * repositórios `main`.
+     */
+    val globalConnectionFactory: ConnectionFactory
+        get() = getGlobalPool()
+
     override fun create(): Mono<out Connection> =
         Mono.deferContextual {
             TenantContext.read()

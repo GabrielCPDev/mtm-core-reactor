@@ -23,7 +23,7 @@ Para utilizar esta biblioteca, seu projeto deve atender aos seguintes requisitos
 | :--- | :--- |
 | **Java** | 21 |
 | **Kotlin** | 2.2.21 |
-| **Spring Boot** | 4.0.0 (Reactive Stack) |
+| **Spring Boot** | 4.2.0 (Reactive Stack) |
 
 ## 📦 Instalação
 
@@ -31,7 +31,7 @@ Adicione a dependência ao seu `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.iggdrasil:mtm-core-reactor:0.0.1-rc17-SNAPSHOT")
+    implementation("io.igdrasil.mtm:mtm-core-reactor:1.1.0")
 }
 ```
 
@@ -51,17 +51,13 @@ mtm:
     port: 5432
     username: meu_usuario
     password: minha_senha
-    database: base_db # Nome base para os bancos (ex: base_db_tenant1)
+    database: base_db # Nome base para os bancos (ex: base_db-tenant1)
     max-pool-size: 10
   
   repositories:
-    # Repositórios que acessam o banco 'global' (sem contexto de tenant)
+    # Repositórios que SEMPRE acessam o banco global, com ou sem tenant no contexto
     main:
       - "com.exemplo.app.repository.main"
-    
-    # Repositórios que acessam dados compartilhados (se houver)
-    shared:
-      - "com.exemplo.app.repository.shared"
     
     # Repositórios que acessam dados específicos do tenant (Roteamento Dinâmico)
     tenant:
@@ -72,7 +68,10 @@ mtm:
 
 *   `mtm.data-source.type`: Tipo do banco de dados (`POSTGRES`, `MYSQL`, `MONGO`).
 *   `mtm.data-source.database`: O prefixo ou nome base do banco de dados. O sistema irá procurar/criar conexões para `base_db` (global) ou `base_db-<tenant_id>` (tenant).
+*   `mtm.repositories.main`: pacotes de repositórios que SEMPRE usam o banco global, mesmo com tenant no contexto.
+*   `mtm.repositories.tenant`: pacotes de repositórios que usam o banco do tenant do contexto (`<database>-<tenant>`); sem tenant, o global.
 *   `mtm.repositories.*`: Lista de pacotes onde o Spring Data deve procurar por interfaces de repositório. É **crucial** separar seus repositórios nesses pacotes para que a injeção de dependência funcione corretamente com o contexto certo.
+*   **Modo `MONGO`**: a lib traz o starter do R2DBC; exclua `R2dbcAutoConfiguration`, `R2dbcTransactionManagerAutoConfiguration`, `DataR2dbcAutoConfiguration` e `DataR2dbcRepositoriesAutoConfiguration` em `spring.autoconfigure.exclude`, senão o Spring Boot tenta criar uma conexão R2DBC sem URL e a aplicação não sobe.
 
 ## 🛠️ Como Usar
 
